@@ -1,0 +1,371 @@
+<html>
+	<head>
+		<title>DSDT Philco PHN15006/15008</title>
+		<meta charset="UTF-8"> 
+		<style type="text/css">
+html {
+	font-family:sans-serif;
+}
+		</style>
+	</head>
+	<body>
+		<h1>DSDT Philco PHN15006/15008</h1>
+		<h2>Arquivos</h2>
+		<ul>
+			<li><a href="dsdt.dsl">dsdt.dsl</a></li>
+			<li><a href="dsdt.dsl.bkp">dsdt.dsl.bkp</a></li>
+		</ul>
+		<h2>Explicação</h2>
+		<pre>
+_CRT -&gt; Crítico = 0x30
+_PSL -&gt; Este aqui não calcula temperatura
+_PSV -&gt; Passiva = 0x20
+_AC[0/9] -&gt; Lista de leveis de cooler ativo. Neste vai de 0 a 7. Quanto o índice, mais força no cooler.
+_AC0 = 0x10
+_AC1 = 0x11
+_AC2 = 0x12
+_AC3 = 0x13
+_AC4 = 0x14
+_AC5 = 0x15
+_AC6 = 0x16
+_AC7 = 0x17
+
+FSTA -&gt; Fan Speed ? - FSTA do FAN7 = 8, FAN6 = 7... FAN1 = 0, que ativa o índice 8 na tabela CLPT
+
+CTJM -&gt; 8, sempre será verdadeio em comparacoes
+CCPM -&gt; recebe valor da função _SCP ( Set Cooling Policy ) 0 para Ativo e 1 para Passivo.
+
+CTOK -&gt; Convert To Kelvin
+
+FCTL -&gt; Fan Control {
+
+Faz uma série de verificações e altera a velocidade do cooler. Se FSTA for 0, desliga.
+Local2 = CLPT[x][0] - x = CCPM
+Com FAN7 FSTA = 8, alocado em Local1. Quando Local1 = 8 procura pelo índice de valor 0x17 em CLPT = 0.
+Local3 = 0 - Indice na tabela CLPT
+Local4 = 0x17, com a verificacao binaria, Local4 = 7
+Se Local3 &gt; Local4, Local3 = 7
+Creio que no final ele incrementa, pois so entra em FCTL se alterar a temperatura e uma nova regra deve ser carregada.
+Então, FSTA, que é quem dita as regras é igual a última velocidade, já obsoleta.
+
+}
+
+GTLT -&gt; Get Temperature List {
+
+Retorna a variável CLPT de índice CCPM ( 0 ou 1 ). Ambos com 3 índices.
+
+}
+
+GTPT -&gt; ? {
+
+Retorna a temperatura para cada disposito e para a temperatura passiva e crítica.
+É chamado na definição dos coolers e suas velocidades.
+
+}
+
+Pelas funções, mesmo que não haja nenhuma chamada a GDTP e GUTP apenas GTLT, me parece:
+CLPT[0][0] = Termal List
+CLPT[0][1] = Down Temperature
+CLPT[0][2] = Up Temperature
+
+Talvez Crontrol List Processor Temperature
+------------------- CLPT -------------------------
+Name (CLPT, Package (0x02)
+{
+Package (0x03)
+{
+Package (0x0C)
+{
+0x17, 
+0x16, 
+0x15, 
+0x14, 
+0x13, 
+0x12, 
+0x11, 
+0x10, 
+0x20, 
+0x30, 
+0xFE, 
+0xFF
+}, 
+
+Package (0x0C)
+{
+0x00, 
+0x00, 
+0x1E, 
+0x32, 
+0x3C, 
+0x46, 
+0x4E, 
+0x62, 
+0x5C, 
+0x61, 
+0x64, 
+0x67
+}, 
+
+Package (0x0C)
+{
+0x00, 
+0x28, 
+0x3C, 
+0x46, 
+0x50, 
+0x58, 
+0x53, 
+0x5C, 
+0x61, 
+0x64, 
+0x67, 
+0x67
+}
+}, 
+
+Package (0x03)
+{
+Package (0x0C)
+{
+0x17, 
+0x16, 
+0x15, 
+0x14, 
+0x13, 
+0x12, 
+0x11, 
+0x10, 
+0x20, 
+0x30, 
+0xFE, 
+0xFF
+}, 
+
+Package (0x0C)
+{
+0x00, 
+0x00, 
+0x1E, 
+0x32, 
+0x3C, 
+0x46, 
+0x4E, 
+0x62, 
+0x5C, 
+0x61, 
+0x64, 
+0x67
+}, 
+
+Package (0x0C)
+{
+0x00, 
+0x28, 
+0x3C, 
+0x46, 
+0x50, 
+0x58, 
+0x53, 
+0x5C, 
+0x61, 
+0x64, 
+0x67, 
+0x67
+}
+}
+})
+
+Name (FANT, Package (0x08)
+{
+0x00, 
+0x0A8C, /* 2700 */
+0x0D48, /* 3400 */
+0x0FA0, /* 4000 */ 
+0x1130, /* 4400 */ 
+0x1482, /* 5250 */
+0x1482,
+0x1482
+})
+
+
+FSTA do FAN7
+10000000
+00000000
+--------
+10000000
+
+Local4 = 0x17
+10111
+01111
+00111
+
+Local3 &gt; Local4
+		</pre>
+		<h2>Resumo AML</h2>
+		<pre>
+-- Descompila
+iasl -d dsdt.aml
+-- Recompila, e gera o AML
+iasl -tc dsdt.dsl 
+
+--Programcao
+And (Source1, Source2, Result) - Não entendi, mas opcionalmente guarda o valor em Result
+FindSetRightBit (Source, Result) - Procura o LSb (Last SignifcantBit) de Source e opcionalmente guarda o valor em Result
+If (Predicate) - Se não for zero, executa
+Increment (Addend) - Incrementa 1 em Addend
+Name (ObjectName, Object) - Cria um objeto global com objeto/valor de Object.
+Store (Source, Destination) - guarda o valor de Source em Destination, convertando o valor para o tipo de Destination.
+DerefOf (Source) - retorna um objeto referenciado por Source.
+Index (Source, Index, Destination) - Retorna o valor de um determinado indice, no caso aqui, o valor de FANT. Se houver Destination, guarda ali o valor, se não apenas retorna.
+
+A função final é FON, o oposto de FOFF ( Fan On e Fan Off ).
+
+Variáveis:
+CTJM = 8
+Objetos:
+FSTA - Este cara recebe o valor Zero, na funcao FCTL se ele for Zero desliga o fan, caso contrario realiza uma porcao de verificacoes e liga o fan, o valor dele vai ate 8.
+FANT e FANO
+CLPT - Existem 2 listas com cada uma contendo 3 listas.
+CCPM - Recebe o valor 0. CheckCoolingPolicyMode? Sempre que eu do um echo no cooling_mode, ele para por um instante.
+_TC1 e _TC2 - ThermalConstant - Constantes de Temperatura - Serve para realizar uma fórmula de cooler passivo.
+_TSP - ThermalSamplingPeriod - O periodo em que ele checa as temperatuas em décimos de segundos.
+
+-- Comparações antes do FON
+Local3 nunca será maior que Local4
+
+Method (_SCP, 1, NotSerialized) - SetCoolingPolicy - Diz se vai ser passivo ou ativo. DEVE RECEBER 3 PARAMETROS, SO TEM 1. Ninguém chama este método.
+
+Method (GTLT, 0, NotSerialized)
+Não sei
+
+Method (FCTL, 0, Serialized) - FanControl?
+É o método que através de alguns cálculos liga ou desliga o cooler. Nele há somente uma chamada da FON e da FOFF. Ele é chamado naquela parte do código onde há 8 fans. FAN0 _OFF/ FAN0 _ON
+Há uma combinação binária onde ele força o índice máximo para 7. Onde 7 corresponde ao último índice do FANT, ou seja, o CPU está se fundindo aqui. Provavelmente vai desligar.
+
+Method (FON, 1, NotSerialized)
+Liga o cooler. Passa dois parâmetros para o controlador, 0x00 e a velocidade do fan nescessária.
+
+Method (FOFF, 1, NotSerialized)
+Desliga o cooler, passa dois parâmetros para o controlador, 0x00 e 0x00.
+
+Method GSPD -> Parece ser abreviação de GetSpeed
+Recebe um argumento, e retorna o hexadecimal da velocidade do cooler em FANT/FANO.
+A condicao de IF parece nunca ser falsa, e portanto, nunca acessar os valores da tabela FANO.
+Se for verdadeiro FANT, caso contrário FANO.
+
+Name (CLPT, Package (0x02)
+        {
+            Package (0x03)
+            {
+                Package (0x0C)
+                {
+                    0x17,
+                    0x16,
+                    0x15,
+                    0x14,
+                    0x13,
+                    0x12,
+                    0x11,
+                    0x10,
+                    0x20, ---- Passivo
+                    0x30, -----Critico
+                    0xFE,
+                    0xFF
+                },
+
+                Package (0x0C)
+                {
+                    0x00,
+                    0x00,
+                    0x1E,
+                    0x32,
+                    0x3C,
+                    0x46,
+                    0x4E,
+                    0x62,
+                    0x5C,
+                    0x61,
+                    0x64,
+                    0x67
+                },
+
+                Package (0x0C)
+                {
+                    0x00,
+                    0x28,
+                    0x3C,
+                    0x46,
+                    0x50,
+                    0x58,
+                    0x53,
+                    0x5C,
+                    0x61,
+                    0x64,
+                    0x67,
+                    0x67
+                }
+            },
+
+            Package (0x03)
+            {
+                Package (0x0C)
+                {
+                    0x17,
+                    0x16,
+                    0x15,
+                    0x14,
+                    0x13,
+                    0x12,
+                    0x11,
+                    0x10,
+                    0x20,
+                    0x30,
+                    0xFE,
+                    0xFF
+                },Package (0x0C)
+                {
+                    0x00,
+                    0x00,
+                    0x1E,
+                    0x32,
+                    0x3C,
+                    0x46,
+                    0x4E,
+                    0x62,
+                    0x5C,
+                    0x61,
+                    0x64,
+                    0x67
+                },
+
+                Package (0x0C)
+                {
+                    0x00,
+                    0x28,
+                    0x3C,
+                    0x46,
+                    0x50,
+                    0x58,
+                    0x53,
+                    0x5C,
+                    0x61,
+                    0x64,
+                    0x67,
+                    0x67
+                }
+            }
+        })
+
+Comparacao Binária
+0x017 - 10111
+0x0F  - 01111
+        00111
+
+GTPT(0x30) para CRT
+local2 = 9
+local3 = 0 + 1 = 1
+local5 = uma das duas tabelas de CLTP
+local6 = 30 61 64
+		</pre>
+	</body>
+</html>
